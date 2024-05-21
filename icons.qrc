@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>images/casa.png</file>
+    <file>images/Marca-sicoob.png</file>
+    <file>images/desligar.png</file>
+    <file>images/logo.png</file>
+  </qresource>
+</RCC>

@@ -1,4 +1,5 @@
-# SicoobSupportAPP
+Note: This project was created to make my job easier.
+The blacked-out forms were used to avoid any issues related to linking the logo/name of the company where I work.
 
 # MAIN MENU:
 

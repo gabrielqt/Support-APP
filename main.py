@@ -1,14 +1,15 @@
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QApplication, QMainWindow)
-from ui_main import Ui_MainWindow
+from main_ui import Ui_MainWindow
 import sys
 from functions import getpassword, icmpv4, icmpv4_, funccleaner
 from functions import getusername, getcpuname, getdiskspace, getmodel, getram, getmac, getip
+import threading
 import subprocess
 import json
 
 
-with open('Support-APP\\ip_address.json', 'r') as file:
+with open('.\\ip_address.json') as file:
     iplist : dict = json.loads(file.read())
     
     
@@ -18,7 +19,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
         self.setWindowTitle('Sicoob Suporte')
-        appicon = QIcon(u'C:\\Users\\Gabriel\\.vscode\\SicoobSupportAPP\\images\\logo.png')
+        appicon = QIcon(u'.\\images\\logo.png')
         self.setWindowIcon(appicon)
 
 
@@ -114,7 +115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def pingtest_others(self):
         pcname = self.linepcname_.text()
         name_and_ip = {self.playcheck : iplist['play'], self.ccscheck : iplist['ccs'],
-                       self.centralcheck : iplist['central'], self.uadcheck : iplist['uad']}
+                        self.uadcheck : iplist['uad']}
         
         for key, value in name_and_ip.items():  
             
@@ -159,11 +160,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def cleaner(self):
         pcname = self.lineEdit_3.text()
-        funccleaner(pcname)
-    
+        threadclean = threading.Thread(target=funccleaner, args=(pcname,))
+        threadclean.start()
+        
     def gpupdate(self):
         pcname = self.lineEdit_3.text()
-        subprocess.run(f'psexec \\\\{pcname} cmd /c gpupdate')
+        def gpupdate(pcname):
+            subprocess.run(f'psexec \\\\{pcname} cmd /c gpupdate')
+        threadgp = threading.Thread(target=gpupdate, args=(pcname,))
+        threadgp.start()
 
     def turnoff(self):
         pcname = self.lineEdit_3.text()

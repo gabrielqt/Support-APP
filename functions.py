@@ -26,7 +26,7 @@ def getpassword(pcname):
 
 def icmpv4(pa):
 
-    with open('Support-APP\\ip_address.json', 'r') as file:
+    with open('.\\ip_address.json', 'r') as file:
         iplist : dict = json.loads(file.read())
     
     ip = iplist[pa]
@@ -52,7 +52,7 @@ def icmpv4_(pcname, ip):
 
 
 def funccleaner(pcname):
-    subprocess.run(f'xcopy "C:\\Users\\Administrador\\Documents\\limpeza.bat" "\\\\{pcname}\\c$\\Users\\Administrador\\Documents\\limpeza.bat" -F -Y')
+    subprocess.run(f'xcopy "C:\\Users\\Administrador\\Documents\\limpeza.bat" "\\\\{pcname}\\c$\\Users\\Administrador\\Documents\\limpeza.bat" /y /c /f')
     subprocess.run(f'psexec \\\\{pcname} "C:\\Users\\Administrador\\Documents\\limpeza.bat"')
 
     

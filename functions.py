@@ -1,6 +1,25 @@
 import subprocess
 import re
 import json
+import sys
+import os
+
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# Use the function to find your JSON file
+json_path = resource_path("ip_address.json")
+
+
+
+
 
 def bytes_to_gigabytes(bytes:int):
     return str(bytes/1024**3)
@@ -26,7 +45,7 @@ def getpassword(pcname):
 
 def icmpv4(pa):
 
-    with open('.\\ip_address.json', 'r') as file:
+    with open(json_path, 'r') as file:
         iplist : dict = json.loads(file.read())
     
     ip = iplist[pa]
@@ -161,16 +180,18 @@ def getram(pcname):
     
     match = re.findall(pattern,output.stdout)
     
-    if match[1]:     #caso tenha uma segunda memoria ram
-        slot1 = int(match[0])
-        slot2 = int(match[1])
-        slotgiga = bytes_to_gigabytes(slot1)
-        slotgiga2 = bytes_to_gigabytes(slot2)
-        return f'{slotgiga} GB + {slotgiga2} GB'
-    
-        #bytes to gigabytes ele converte o valor que a wmic memorychip retorna que é bytes pra gb
+    try:
+        if match[1]:     #caso tenha uma segunda memoria ram
+            slot1 = int(match[0])
+            slot2 = int(match[1])
+            slotgiga = bytes_to_gigabytes(slot1)
+            slotgiga2 = bytes_to_gigabytes(slot2)
+            return f'{slotgiga} GB + {slotgiga2} GB'
+    except IndexError:
+        return bytes_to_gigabytes(match[0])  + 'GB'
+    #bytes to gigabytes ele converte o valor que a wmic memorychip retorna que é bytes pra gb
         
-    return bytes_to_gigabytes(match[0])  + 'GB'
+    
 
 
 def getip(pcname):

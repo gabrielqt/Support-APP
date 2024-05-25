@@ -5,16 +5,15 @@ import sys
 import os
 
 def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for dev and for PyInstaller """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
+
         base_path = sys._MEIPASS
     except AttributeError:
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
 
-# Use the function to find your JSON file
+
 json_path = resource_path("ip_address.json")
 
 

@@ -1,14 +1,8 @@
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QApplication, QMainWindow)
-from main_ui import Ui_MainWindow
-import sys
-from functions import getpassword, icmpv4, icmpv4_, funccleaner
-from functions import getusername, getcpuname, getdiskspace, getmodel, getram, getmac, getip
-import threading
 import subprocess
+import re
 import json
+import sys
 import os
-
 
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for dev and for PyInstaller """
@@ -27,235 +21,199 @@ json_path = resource_path("ip_address.json")
 
 
 
+def bytes_to_gigabytes(bytes:int):
+    return str(bytes/1024**3)
 
-
-
-
-with open(json_path) as file:
-    iplist : dict = json.loads(file.read())
+# --------------- LAPS: ---------------------------------
+def getpassword(pcname):
+    command = f'Get-LapsADPassword -Identity {pcname} -AsPlainText' #comando para pegar a local admin password
+    #comando sendo executado para pegar a saída do mesmo:
+    result = subprocess.run(['powershell', '-Command', command], capture_output=True, text=True)   
     
+    if result.returncode == 0:  #returncode == 0 isto é não houve erros na hora de executar o comando no shell
+        text = result.stdout #atribuindo a saída ao text
+        pattern = re.compile('Password            : (.+)')    #criando o padrão para extrair somente a senha do text
+        match = re.search(pattern, text)   #extraindo a senha
+        return match.group(1)  #retorna a senha
     
-
-class MainWindow(QMainWindow, Ui_MainWindow):
-    def __init__(self):
-        super(MainWindow, self).__init__()
-        self.setupUi(self)
-        self.setWindowTitle('Sicoob Suporte')
-        appicon = QIcon(u'.\\images\\logo.png')
-        self.setWindowIcon(appicon)
-
-
-        ###### NAVIGATING:
-        #GO TO MENU:
-        self.btn_backtomenu.clicked.connect(self.gotomenu)
-        self.btn_backtomenu.clicked.connect(self.resetlaps)
-        self.btn_backtomenu_2.clicked.connect(self.gotomenu)
-        self.btn_backtomenu_2.clicked.connect(self.resetinfo)
-        self.btn_backtomenu_3.clicked.connect(self.gotomenu)
-        self.btn_backtomenu_3.clicked.connect(self.resetping)
+    else: #houve erros ao executar o comando, entao ele retorna uma mensagem que vai ser colocada na line:
+        return 'Senha não encontrada'   #estou retornando isso ao invés do st.derr pois a line é pequena.
         
-
-        self.btnquit.clicked.connect(self.quitapp)
-        self.btn_page_laps.clicked.connect(self.gotolaps)
-        self.btn_page_pingtest.clicked.connect(self.gotoping)
-        self.btn_page_infopc.clicked.connect(self.gotoinfo)
-
-
-#     ---------------   INFO BUTTONS ----------------------
-
-        self.btn_cleaner.clicked.connect(self.cleaner)
-        self.btn_gpupdate.clicked.connect(self.gpupdate)
-        self.btn_shutdownr.clicked.connect(self.turnoff)
-        self.btn_shutdowns.clicked.connect(self.restart)
         
+        
+# --------------------- PING ----------------
+
+def icmpv4(pa):
+
+    with open(json_path, 'r') as file:
+        iplist : dict = json.loads(file.read())
     
-    ################ GETTING INFOO ############
-
-        self.submitbutton_info.clicked.connect(self.show_username)
-        self.submitbutton_info.clicked.connect(self.showdisk)
-        self.submitbutton_info.clicked.connect(self.showcpu)
-        self.submitbutton_info.clicked.connect(self.showmodel)
-        self.submitbutton_info.clicked.connect(self.showram)
-        self.submitbutton_info.clicked.connect(self.showmac)
-        self.submitbutton_info.clicked.connect(self.showip)
-        
-        
-
-
-        
-        # !!!!!!!!!!!!      LAPS!!!!!!!!!!!!
-        self.submitbutton_laps.clicked.connect(self.lapsfunction)   
-        self.linepcname.editingFinished.connect(self.lapsfunction)    
-        
-        
-        ################## PING############
-        self.linepa.editingFinished.connect(self.pingtest_fw)
-        self.linepcname_.editingFinished.connect(self.pingtest_others)
-
-        
-
-            # !!!!!!!!!!!!       LAPS !!!!!!!!!!!!
-    def lapsfunction(self):
-        
-        pcname = self.linepcname.text()
-        password = getpassword(pcname)
-        self.linepassword.setText(password)
-        
-        
-
-        
-        
-    def gotomenu(self):
-        self.stackedWidget.setCurrentWidget(self.menu)
-        
-    def gotolaps(self):
-        self.stackedWidget.setCurrentWidget(self.page_laps)
-        
-    def gotoinfo(self):
-        self.stackedWidget.setCurrentWidget(self.page_infopc)
-        
-    def gotoping(self):
-        self.stackedWidget.setCurrentWidget(self.page_ping)
-        
-    def quitapp(self):
-        self.close()
-
-
-
-# --------------- PING----------------
-#firewallcheck playcheck ccscheck centralcheck uadcheck
-    def pingtest_fw(self):
-        
-        ip = str(self.linepa.text())
-        result = icmpv4(ip)
-        if result == 1:
-            self.firewallcheck.setStyleSheet(u"background-color: green;\nborder-radius:10px")
-        else:
-            self.firewallcheck.setStyleSheet(u"background-color: red;\nborder-radius:10px")
-        
-
-    def pingtest_others(self):
-        pcname = self.linepcname_.text()
-        name_and_ip = {self.playcheck : iplist['play'], self.ccscheck : iplist['ccs'],
-                        self.uadcheck : iplist['uad'], self.centralcheck : iplist['central']}
-        
-        for key, value in name_and_ip.items():  
+    ip = iplist[pa]
             
-            result = icmpv4_(pcname, value)
-            if result == 1:
-                key.setStyleSheet(u"background-color: green;\nborder-radius:10px")
-            else:
-                key.setStyleSheet(u"background-color: red;\nborder-radius:10px")
+    result = subprocess.run(f'ping {ip} -n 1', capture_output=True, shell=True)
+    if result.returncode == 0:
+        return 1
+    else:
+        return 0 
+    
+
+def icmpv4_(pcname, ip):
+    
+    result = subprocess.run(f'psexec \\\\{pcname} cmd /c ping {ip} -n 1', capture_output=True, shell=True)
+    if result.returncode == 0:
+        return 1
+    else:
+        return 0 
+
+
+
+########### CLEAN  ##############
+
+
+def funccleaner(pcname):
+    subprocess.run(f'xcopy "C:\\Users\\Administrador\\Documents\\limpeza.bat" "\\\\{pcname}\\c$\\Users\\Administrador\\Documents\\limpeza.bat" /y /c /f')
+    subprocess.run(f'psexec \\\\{pcname} "C:\\Users\\Administrador\\Documents\\limpeza.bat"')
+
+    
+    
+    
+############################## INFO ##################
+
+
+def getusername(pcname):
+    
+    pattern = r'UNICOOB\\(.+)'  
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c wmic computersystem get username', capture_output=True, text=True)
+    match = re.search(pattern, output.stdout)
+    
+    
+    if output.returncode != 0:
+        match = f'Erro: {output.stderr}'
+        return match
         
     
-    def resetping(self):
         
-        self.playcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
-        self.firewallcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
-        self.uadcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
-        self.centralcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
-        self.ccscheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
-        self.linepa.clear()
-        self.linepcname_.clear()
-        
-    def resetinfo(self):
-        
-        self.linecpu.clear()
-        self.lineEdit_3.clear()
-        self.linefreedisk.clear()
-        self.linetotaldisk.clear()
-        self.linemac.clear()
-        self.lineip.clear()
-        self.lineram.clear()
-        self.linetotaldisk.clear()
-        self.lineuser.clear()
-        self.linemodelo.clear()
-        
-    def resetlaps(self):
-        
-        self.linepassword.clear()
-        self.linepcname.clear()
-            
-
-
-#   - -------------------------- CLEANER -----------
-
-    def cleaner(self):
-        pcname = self.lineEdit_3.text()
-        threadclean = threading.Thread(target=funccleaner, args=(pcname,))
-        threadclean.start()
-        
-    def gpupdate(self):
-        pcname = self.lineEdit_3.text()
-        def gpupdate(pcname):
-            subprocess.run(f'psexec \\\\{pcname} cmd /c gpupdate')
-        threadgp = threading.Thread(target=gpupdate, args=(pcname,))
-        threadgp.start()
-
-    def turnoff(self):
-        pcname = self.lineEdit_3.text()
-        subprocess.run(f'psexec \\\\{pcname} cmd /c shutdown -s -f -t 0')
-
-    def restart(self):
-        pcname = self.lineEdit_3.text()
-        subprocess.run(f'psexec \\\\{pcname} cmd /c shutdown -r -f -t 0')
-
-     
-
-
-
-#################### INFOO PC ##################
+    return match.group(1)
 
 
 
 
-
-    def show_username(self):
-        
-        username = getusername(self.lineEdit_3.text())
-        self.lineuser.setText(username)
+def getcpuname(pcname):
     
-    def showcpu(self):
+    
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c wmic cpu get name', capture_output=True, text=True)
+    
+    if output.returncode != 0:
+        match = f'Erro: {output.stderr}'
+        return match
+    
+    try:
+        pattern = r'(i\d(.+))'
+        match = re.search(pattern,output.stdout)
+    except:
+        pattern = '\n(.+)'
+        match = re.search(pattern,output.stdout)
+    
+
+    return match.group(1)
+
+
+    
+def getdiskspace(pcname):
+    
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c fsutil volume diskfree c:',
+                            capture_output=True, text=True)
+    
+    pattern = r'\((.+)\)'
+    
+    if output.returncode != 0:
+        match = f'Erro: {output.stderr}'
+        return match
+    
+    try:    
+        match = re.findall(pattern,output.stdout)  
+    except:
+        return 'Ñ foi possível acessar'
+    
+    return match[1], match[2]   #1° free; 2° totla
+    
+    
+
+def getmac(pcname):
+    
+    pattern = r'..-..-..-..-..-..'
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c getmac /v /fo list', capture_output=True, text=True)
+    
+    if output.returncode != 0:
         
-        cpu = getcpuname(self.lineEdit_3.text())
-        self.linecpu.setText(cpu)
+        match = f'Erro: {output.stderr}'
+        return match
+    
+    match = re.search(pattern, output.stdout)
+    return match.group(0)
+    
+
+def getmodel(pcname):
+    
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c wmic computersystem get model',
+                            capture_output=True, text=True)
+    
+    
+    if output.returncode != 0:
+        match = f'Erro: {output.stderr}'
+        return match
+
+        # pattern = r'\n\nModel    \n\n(.+)'  
+    pattern = r'\n\n(.+)'  
+    match = re.findall(pattern,output.stdout)
+    
+    return match[1]
+
+
+
+def getram(pcname):
+    
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c wmic memorychip get capacity', 
+                            capture_output=True, text=True)
+    
+    pattern = r'\n(\d.+)'
+    
+    match = re.findall(pattern,output.stdout)
+    
+    try:
+        if match[1]:     #caso tenha uma segunda memoria ram
+            slot1 = int(match[0])
+            slot2 = int(match[1])
+            slotgiga = bytes_to_gigabytes(slot1)
+            slotgiga2 = bytes_to_gigabytes(slot2)
+            return f'{slotgiga} GB + {slotgiga2} GB'
+    except IndexError:
+        return bytes_to_gigabytes(match[0])  + 'GB'
+    #bytes to gigabytes ele converte o valor que a wmic memorychip retorna que é bytes pra gb
         
-    def showdisk(self):
+    
+
+
+def getip(pcname):
+    
+    output = subprocess.run(f'psexec \\\\{pcname} cmd /c ipconfig', 
+                            capture_output=True, text=True)
+    
+    
+    pattern = r'\d\d\.\d\d\d\.\d\d\d\.\d\d'
+    match = re.search(pattern,output.stdout)
+    
+    if match == None:
         
-        try:
-            freedisk, totaldisk = getdiskspace(self.lineEdit_3.text())
-            self.linefreedisk.setText(freedisk)
-            self.linetotaldisk.setText(totaldisk)
+        pattern = r'\d\d\.\d\d\d\.\d\d\.\d\d'
+        match = re.search(pattern,output.stdout)
+        return match.group(1)
+
         
-        except ValueError:
-            self.linefreedisk.setText('Máquina desligada')
-            self.linetotaldisk.setText('Máquina desligada')
-        
-        
-    def showmodel(self):
-        
-        model  = getmodel(self.lineEdit_3.text())
-        self.linemodelo.setText(model)
-        
-    def showram(self):
-        
-        ram = getram(self.lineEdit_3.text())
-        self.lineram.setText(ram)
+
+    return match.group(0)
+    
+    
     
         
-    def showmac(self):
         
-        mac = getmac(self.lineEdit_3.text())
-        self.linemac.setText(mac)
-        
-    def showip(self):
-        
-        ip = getip(self.lineEdit_3.text())
-        self.lineip.setText(ip)
-        
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    app.exec()
-    

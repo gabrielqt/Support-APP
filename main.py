@@ -7,9 +7,31 @@ from functions import getusername, getcpuname, getdiskspace, getmodel, getram, g
 import threading
 import subprocess
 import json
+import os
 
 
-with open('.\\ip_address.json') as file:
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# Use the function to find your JSON file
+json_path = resource_path("ip_address.json")
+
+
+
+
+
+
+
+
+
+with open(json_path) as file:
     iplist : dict = json.loads(file.read())
     
     
@@ -96,7 +118,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.stackedWidget.setCurrentWidget(self.page_ping)
         
     def quitapp(self):
-        quit(self)
+        self.close()
 
 
 
@@ -115,7 +137,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def pingtest_others(self):
         pcname = self.linepcname_.text()
         name_and_ip = {self.playcheck : iplist['play'], self.ccscheck : iplist['ccs'],
-                        self.uadcheck : iplist['uad']}
+                        self.uadcheck : iplist['uad'], self.centralcheck : iplist['central']}
         
         for key, value in name_and_ip.items():  
             
@@ -128,7 +150,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def resetping(self):
         
-        self.playcheck.setStyleSheet(u"background-color: claliceblue;\nborder-radius:10px")
+        self.playcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
         self.firewallcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
         self.uadcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
         self.centralcheck.setStyleSheet(u"background-color: aliceblue;\nborder-radius:10px")
